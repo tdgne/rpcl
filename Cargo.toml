@@ -1,0 +1,10 @@
+[package]
+name = "repository_locations"
+version = "0.1.0"
+authors = ["tdgne"]
+edition = "2018"
+
+[dependencies]
+walkdir = "2"
+clap = "2.33"
+crossterm = "0.11.1"
