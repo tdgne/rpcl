@@ -121,8 +121,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "gitignore"
+version = "1.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "glob 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "glob"
+version = "0.2.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "libc"
 version = "0.2.62"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "number_prefix"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -131,6 +149,8 @@ version = "0.1.0"
 dependencies = [
  "clap 2.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "crossterm 0.11.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "gitignore 1.0.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "number_prefix 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "walkdir 2.2.9 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -215,7 +235,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum crossterm_terminal 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "1882bfcef878a2ef66c36d988f8c2f1ec487a62c929a66e5f9ca75c03d0c4058"
 "checksum crossterm_utils 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "f1b46df236ff59f418afe87b2f19941e050ac205f1f1aa0bdba114b820201477"
 "checksum crossterm_winapi 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "1521f4476da2d62ec558221bf3136d834cc08c585b1bcb2c072f89e47b27f138"
+"checksum gitignore 1.0.6 (registry+https://github.com/rust-lang/crates.io-index)" = "f5beed3b526478bebc1dd164b7aa770ae709f918a7b978fcb4afdaf3bbee8dfd"
+"checksum glob 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)" = "8be18de09a56b60ed0edf84bc9df007e30040691af7acd1c41874faac5895bfb"
 "checksum libc 0.2.62 (registry+https://github.com/rust-lang/crates.io-index)" = "34fcd2c08d2f832f376f4173a231990fa5aef4e99fb569867318a227ef4c06ba"
+"checksum number_prefix 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "17b02fc0ff9a9e4b35b3342880f48e896ebf69f2967921fe8646bf5b7125956a"
 "checksum same-file 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)" = "585e8ddcedc187886a30fa705c47985c3fa88d06624095856b36ca0b82ff4421"
 "checksum strsim 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)" = "8ea5119cdb4c55b55d432abb513a0429384878c15dde60cc77b1c99de1a95a6a"
 "checksum textwrap 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)" = "d326610f408c7a4eb6f51c37c330e496b08506c9457c9d34287ecc38809fb060"

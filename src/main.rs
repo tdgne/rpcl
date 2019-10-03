@@ -3,7 +3,8 @@ use std::thread;
 use std::time::Duration;
 use std::sync::mpsc::{Receiver, channel};
 use clap;
-use crossterm::{style, RawScreen, input, InputEvent, KeyEvent, AlternateScreen, ClearType, Color, Crossterm};
+use crossterm::{style, Attribute, RawScreen, input, InputEvent, KeyEvent, AlternateScreen, ClearType, Color, Crossterm};
+use number_prefix::{NumberPrefix, Standalone, Prefixed};
 
 pub mod repository;
 use repository::{Repository, RepositoryStore};
@@ -40,9 +41,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut stdin = input.read_async();
 
     loop {
-        terminal.clear(ClearType::All)?;
-        cursor.goto(0, 0)?;
-        terminal.write("test")?;
+        let mut render = false;
         if let Some(event) = stdin.next() {
             match event {
                 InputEvent::Keyboard(k) => {
@@ -62,7 +61,24 @@ fn main() -> Result<(), Box<dyn Error>> {
         if let Ok(event) = rx.try_recv() {
             match event {
                 repository::Event::Update => {
-                    println!("abc");
+                    render = true;
+                }
+            }
+        }
+        if render {
+            terminal.clear(ClearType::All)?;
+            cursor.goto(0, 0)?;
+            for (i, repository) in repositories.repositories_sorted()?.iter().enumerate() {
+                let size = repository.size();
+                if size > 0 {
+                    let size_str = match NumberPrefix::binary(size as f64) {
+                        Standalone(bytes) => format!("{}", bytes),
+                        Prefixed(prefix, n) => format!("{:>5.1} {}B", n, prefix),
+                    };
+                    terminal.write(format!("{} {}\r\n", size_str, repository.path().to_string_lossy()))?;
+                }
+                if i > 20 {
+                    break;
                 }
             }
         }
