@@ -4,6 +4,12 @@ use walkdir::{DirEntry, WalkDir};
 use crate::repository::*;
 use gitignore;
 
+pub enum Event {
+    Update,
+    Done,
+}
+
+
 fn is_repository_mark_directory(entry: &DirEntry) -> bool {
     entry.file_type().is_dir() && entry.file_name().to_str().map(|s| s == ".git").unwrap_or(false)
 }
@@ -61,7 +67,7 @@ fn collect_ignored_path_infos(repository_path: PathBuf) -> Result<Vec<IgnoredPat
 }
 
 /// Collects all paths that are considered a git repository.
-pub fn collect_repositories(root_path: String, repositories: RepositoryStore) -> Result<(), Box<dyn Error>> {
+pub fn collect_repositories(root_path: String, repositories: RepositoryStore, tx: std::sync::mpsc::Sender<Event>) -> Result<(), Box<dyn Error>> {
     let mut it = WalkDir::new(root_path).follow_links(true).into_iter();
     loop {
         let entry = match it.next() {
@@ -76,11 +82,13 @@ pub fn collect_repositories(root_path: String, repositories: RepositoryStore) ->
                 path
             };
             repositories.add(Repository::new(repository_path.clone(), collect_ignored_path_infos(repository_path)?))?;
+            tx.send(Event::Update);
         }
         if is_hidden_directory(&entry) {
             it.skip_current_dir();
         }
     }
+    tx.send(Event::Done);
     Ok(())
 }
 

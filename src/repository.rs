@@ -46,28 +46,21 @@ impl Repository {
     }
 }
 
-pub enum Event {
-    Update,
-}
-
 #[derive(Clone)]
 pub struct RepositoryStore {
     store: Arc<RwLock<Vec<Repository>>>,
-    tx: Sender<Event>,
 }
 
 impl RepositoryStore {
-    pub fn with_sender(tx: Sender<Event>) -> Self {
+    pub fn new() -> Self {
         Self {
             store: Arc::new(RwLock::new(Vec::new())),
-            tx
         }
     }
 
     //FIXME: return an Error instead of panic!
     pub fn add(&self, repository: Repository) -> Result<(), Box<dyn Error>> {
         self.store.clone().write().expect("RwLock Error").push(repository);
-        self.tx.send(Event::Update)?;
         Ok(())
     }
 

@@ -23,13 +23,22 @@ fn main() -> Result<(), Box<dyn Error>> {
         .get_matches();
     let root_path = matches.value_of("DIR").unwrap_or(".").to_owned();
     let (tx, rx) = channel();
-    let repositories = RepositoryStore::with_sender(tx);
+    let repositories = RepositoryStore::new();
     {
         let repositories = repositories.clone();
+        let root_path = root_path.clone();
         let collector = thread::spawn(|| {
-            collect_repositories(root_path, repositories).unwrap();
+            collect_repositories(root_path, repositories, tx).unwrap();
         });
     }
+
+    let (spinner_tx, spinner_rx) = channel();
+    let spinner = thread::spawn(move || {
+        loop {
+            thread::sleep(Duration::from_millis(333));
+            spinner_tx.send(()).unwrap();
+        }
+    });
 
     let _alt = AlternateScreen::to_alternate(false)?;
     let _raw = RawScreen::into_raw_mode()?;
@@ -39,6 +48,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let input = input();
     let mut stdin = input.read_async();
+
+    let mut spinner_phase = 0usize;
+    let spinner_strs = ["◡◡", "⊙⊙", "◠◠", "⊙⊙"];
+    let mut done = false;
 
     loop {
         let mut render = false;
@@ -60,14 +73,24 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
         if let Ok(event) = rx.try_recv() {
             match event {
-                repository::Event::Update => {
+                collector::Event::Update => {
+                    render = true;
+                },
+                collector::Event::Done => {
+                    done = true;
                     render = true;
                 }
             }
         }
+        if let Ok(_) = spinner_rx.try_recv() {
+            render = true;
+            spinner_phase += 1;
+            spinner_phase %= 4;
+        }
         if render {
             terminal.clear(ClearType::All)?;
             cursor.goto(0, 0)?;
+            cursor.hide()?;
             for (i, repository) in repositories.repositories_sorted()?.iter().enumerate() {
                 let size = repository.size();
                 if size > 0 {
@@ -80,6 +103,11 @@ fn main() -> Result<(), Box<dyn Error>> {
                 if i > 20 {
                     break;
                 }
+            }
+            if done {
+                terminal.write(format!("Done."))?;
+            } else {
+                terminal.write(format!("{} Searching under {}", spinner_strs[spinner_phase], root_path))?;
             }
         }
         thread::sleep(Duration::from_millis(33));
