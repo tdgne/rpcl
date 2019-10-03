@@ -28,20 +28,20 @@ fn main() -> Result<(), Box<dyn Error>> {
     {
         let repositories = repositories.clone();
         let root_path = root_path.clone();
-        let collector = thread::spawn(|| {
+        let _collector = thread::spawn(|| {
             collect_repositories(root_path, repositories, tx).unwrap();
         });
     }
 
     let (spinner_tx, spinner_rx) = channel();
-    let spinner = thread::spawn(move || {
+    let _spinner = thread::spawn(move || {
         loop {
             thread::sleep(Duration::from_millis(333));
             spinner_tx.send(()).unwrap();
         }
     });
 
-    let app = App { repositories, root_path, spinner_phase: 0 };
+    let app = App { repositories, root_path, spinner_phase: 0, y_pos: 0, path_scroll_amount: 0 };
     run_tui(app, rx, spinner_rx)?;
     Ok(())
 }

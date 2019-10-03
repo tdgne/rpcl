@@ -1,6 +1,5 @@
 use std::error::Error;
 use std::sync::{Arc, RwLock};
-use std::sync::mpsc::Sender;
 use std::path::{Path, PathBuf};
 
 #[derive(Clone)]

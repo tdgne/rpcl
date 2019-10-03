@@ -82,13 +82,13 @@ pub fn collect_repositories(root_path: String, repositories: RepositoryStore, tx
                 path
             };
             repositories.add(Repository::new(repository_path.clone(), collect_ignored_path_infos(repository_path)?))?;
-            tx.send(Event::Update);
+            tx.send(Event::Update)?;
         }
         if is_hidden_directory(&entry) {
             it.skip_current_dir();
         }
     }
-    tx.send(Event::Done);
+    tx.send(Event::Done)?;
     Ok(())
 }
 
