@@ -13,6 +13,7 @@ pub struct App {
     pub root_path: String,
     pub spinner_phase: usize,
     pub y_pos: usize,
+    pub frame_y_offset: usize,
     pub path_scroll_amount: usize,
 }
 
@@ -29,6 +30,7 @@ fn scroll_line_if_needed(mut line: String, width: usize, scroll_amount: usize) -
 }
 
 fn render_repository(app: &App, repository: &Repository, terminal: &Terminal, selected: bool) -> crossterm::Result<()> {
+    terminal.clear(ClearType::CurrentLine)?;
     let size = repository.size();
     let (width, height) = terminal.size()?;
     let size_str = match NumberPrefix::binary(size as f64) {
@@ -52,10 +54,10 @@ pub fn run_tui(
     collector_rx: Receiver<collector::Event>,
     spinner_rx: Receiver<()>
 ) -> Result<(), Box<dyn Error>> {
-    let _alt = AlternateScreen::to_alternate(true)?;
     let _raw = RawScreen::into_raw_mode()?;
     let crossterm = Crossterm::new();
     let terminal = crossterm.terminal();
+    terminal.clear(ClearType::All)?;
     let cursor = crossterm.cursor();
     cursor.hide()?;
     let (width, height) = terminal.size()?;
@@ -65,6 +67,24 @@ pub fn run_tui(
 
     let spinner_strs = ["◡◡", "⊙⊙", "◠◠", "⊙⊙"];
     let mut done = false;
+
+    fn go_up(app: &mut App) {
+        if app.y_pos > 0 {
+            app.y_pos -= 1;
+        } else if app.frame_y_offset > 0 {
+            app.frame_y_offset -= 1;
+        }
+        app.path_scroll_amount = 0;
+    }
+
+    fn go_down(app: &mut App, list_height: usize) {
+        if app.y_pos + 1 < list_height {
+            app.y_pos += 1;
+        } else {
+            app.frame_y_offset += 1;
+        }
+        app.path_scroll_amount = 0;
+    }
 
     loop {
         let mut render = true;
@@ -77,14 +97,10 @@ pub fn run_tui(
                                 break;
                             },
                             'j' => {
-                                app.y_pos += 1;
-                                app.path_scroll_amount = 0;
+                                go_down(&mut app, height as usize - 2);
                             },
                             'k' => {
-                                if app.y_pos > 0 {
-                                    app.y_pos -= 1;
-                                    app.path_scroll_amount = 0;
-                                }
+                                go_up(&mut app);
                             },
                             _ => {},
                         },
@@ -92,14 +108,10 @@ pub fn run_tui(
                             break;
                         },
                         KeyEvent::Up => {
-                            if app.y_pos > 0 {
-                                app.y_pos -= 1;
-                                app.path_scroll_amount = 0;
-                            }
+                            go_up(&mut app);
                         },
                         KeyEvent::Down => {
-                            app.y_pos += 1;
-                            app.path_scroll_amount = 0;
+                            go_down(&mut app, height as usize - 2);
                         }
                         _ => {},
                     }
@@ -124,24 +136,26 @@ pub fn run_tui(
             app.spinner_phase %= 4;
         }
         if render {
-            terminal.clear(ClearType::All)?;
             cursor.goto(0, 0)?;
-            terminal.write("q: Quit\r\n")?;
-            for (i, repository) in app.repositories.repositories_sorted()?.iter().enumerate() {
-                if repository.size() > 0 {
-                    render_repository(&app, repository, &terminal, i == app.y_pos)?;
-                }
-                if i >= height as usize - 3 {
-                    break;
+            terminal.clear(ClearType::CurrentLine)?;
+            terminal.write("q: Quit  j,k: Move\r\n")?;
+            let list_height = height as usize - 2;
+            let repositories = app.repositories.repositories_sorted()?;
+            for i in 0..list_height {
+                if let Some(repository) = repositories.get(app.frame_y_offset + i) {
+                    if repository.size() > 0 {
+                        render_repository(&app, &repository, &terminal, i == app.y_pos)?;
+                    }
                 }
             }
+            terminal.clear(ClearType::CurrentLine)?;
             if done {
                 terminal.write(format!("Done."))?;
             } else {
                 terminal.write(format!("{} Searching under {}", spinner_strs[app.spinner_phase], app.root_path))?;
             }
         }
-        thread::sleep(Duration::from_millis(33));
+        thread::sleep(Duration::from_millis(67));
         if app.path_scroll_amount < 1000 {
             app.path_scroll_amount += 1;
         }
