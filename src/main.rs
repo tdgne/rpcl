@@ -41,7 +41,16 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     });
 
-    let app = App { repositories, root_path, spinner_phase: 0, y_pos: 0, frame_y_offset: 0, path_scroll_amount: 0 };
+    let app = App {
+        repositories,
+        root_path,
+        spinner_phase: 0,
+        path_list: PathList {
+            pos: 0,
+            offset: 0,
+            path_scroll_amount: 0
+        }
+    };
     run_tui(app, rx, spinner_rx)?;
     Ok(())
 }

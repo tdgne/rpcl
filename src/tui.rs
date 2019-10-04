@@ -8,23 +8,51 @@ use number_prefix::{NumberPrefix, Standalone, Prefixed};
 use crate::collector;
 use crate::repository::*;
 
+pub struct PathList {
+    pub pos: usize,
+    pub offset: usize,
+    pub path_scroll_amount: usize,
+}
+
+impl PathList {
+    fn go_up(&mut self) {
+        if self.pos > 0 {
+            self.pos -= 1;
+        } else if self.offset > 0 {
+            self.offset -= 1;
+        }
+        self.path_scroll_amount = 0;
+    }
+
+    fn go_down(&mut self, list_height: usize) {
+        if self.pos + 1 < list_height {
+            self.pos += 1;
+        } else {
+            self.offset += 1;
+        }
+        self.path_scroll_amount = 0;
+    }
+
+    fn draw(&self) {
+        // TODO: Refactor
+    }
+}
+
 pub struct App {
     pub repositories: RepositoryStore,
     pub root_path: String,
     pub spinner_phase: usize,
-    pub y_pos: usize,
-    pub frame_y_offset: usize,
-    pub path_scroll_amount: usize,
+    pub path_list: PathList,
 }
 
-fn scroll_line_if_needed(mut line: String, width: usize, scroll_amount: usize) -> String {
+fn scroll_line_if_needed(mut line: String, width: usize, path_scroll_amount: usize) -> String {
     if line.len() < width {
         return line;
     }
-    if (line.len() as isize) - (scroll_amount as isize) < width as isize {
+    if (line.len() as isize) - (path_scroll_amount as isize) < width as isize {
         return line.split_off(line.len() - width);
     }
-    let mut line = line.split_off(scroll_amount);
+    let mut line = line.split_off(path_scroll_amount);
     line.split_off(width);
     line
 }
@@ -38,7 +66,7 @@ fn render_repository(app: &App, repository: &Repository, terminal: &Terminal, se
         Prefixed(prefix, n) => format!("{:>5.1} {}B", n, prefix),
     };
     if selected {
-        let path_str = scroll_line_if_needed(repository.path().to_string_lossy().to_string(), width as usize - 10, app.path_scroll_amount);
+        let path_str = scroll_line_if_needed(repository.path().to_string_lossy().to_string(), width as usize - 10, app.path_list.path_scroll_amount);
         terminal.write(Attribute::Reverse)?;
         terminal.write(format!("{:<10}{}\r\n", size_str, path_str))?;
         terminal.write(Attribute::Reset)?;
@@ -68,23 +96,7 @@ pub fn run_tui(
     let spinner_strs = ["◡◡", "⊙⊙", "◠◠", "⊙⊙"];
     let mut done = false;
 
-    fn go_up(app: &mut App) {
-        if app.y_pos > 0 {
-            app.y_pos -= 1;
-        } else if app.frame_y_offset > 0 {
-            app.frame_y_offset -= 1;
-        }
-        app.path_scroll_amount = 0;
-    }
-
-    fn go_down(app: &mut App, list_height: usize) {
-        if app.y_pos + 1 < list_height {
-            app.y_pos += 1;
-        } else {
-            app.frame_y_offset += 1;
-        }
-        app.path_scroll_amount = 0;
-    }
+    
 
     loop {
         let mut render = true;
@@ -97,10 +109,10 @@ pub fn run_tui(
                                 break;
                             },
                             'j' => {
-                                go_down(&mut app, height as usize - 2);
+                                app.path_list.go_down(height as usize - 2);
                             },
                             'k' => {
-                                go_up(&mut app);
+                                app.path_list.go_up();
                             },
                             _ => {},
                         },
@@ -108,10 +120,10 @@ pub fn run_tui(
                             break;
                         },
                         KeyEvent::Up => {
-                            go_up(&mut app);
+                            app.path_list.go_up();
                         },
                         KeyEvent::Down => {
-                            go_down(&mut app, height as usize - 2);
+                            app.path_list.go_down(height as usize - 2);
                         }
                         _ => {},
                     }
@@ -142,9 +154,9 @@ pub fn run_tui(
             let list_height = height as usize - 2;
             let repositories = app.repositories.repositories_sorted()?;
             for i in 0..list_height {
-                if let Some(repository) = repositories.get(app.frame_y_offset + i) {
+                if let Some(repository) = repositories.get(app.path_list.offset + i) {
                     if repository.size() > 0 {
-                        render_repository(&app, &repository, &terminal, i == app.y_pos)?;
+                        render_repository(&app, &repository, &terminal, i == app.path_list.pos)?;
                     }
                 }
             }
@@ -156,8 +168,8 @@ pub fn run_tui(
             }
         }
         thread::sleep(Duration::from_millis(67));
-        if app.path_scroll_amount < 1000 {
-            app.path_scroll_amount += 1;
+        if app.path_list.path_scroll_amount < 1000 {
+            app.path_list.path_scroll_amount += 1;
         }
     }
 
