@@ -2,7 +2,7 @@ use std::error::Error;
 use std::thread;
 use std::time::Duration;
 use std::sync::mpsc::Receiver;
-use crossterm::{style, Attribute, RawScreen, input, InputEvent, KeyEvent, AlternateScreen, ClearType, Color, Crossterm, Styler};
+use crossterm::{style, Attribute, Terminal, RawScreen, input, InputEvent, KeyEvent, AlternateScreen, ClearType, Color, Crossterm, Styler};
 use number_prefix::{NumberPrefix, Standalone, Prefixed};
 
 use crate::collector;
@@ -26,6 +26,25 @@ fn scroll_line_if_needed(mut line: String, width: usize, scroll_amount: usize) -
     let mut line = line.split_off(scroll_amount);
     line.split_off(width);
     line
+}
+
+fn render_repository(app: &App, repository: &Repository, terminal: &Terminal, selected: bool) -> crossterm::Result<()> {
+    let size = repository.size();
+    let (width, height) = terminal.size()?;
+    let size_str = match NumberPrefix::binary(size as f64) {
+        Standalone(bytes) => format!("{}", bytes),
+        Prefixed(prefix, n) => format!("{:>5.1} {}B", n, prefix),
+    };
+    if selected {
+        let path_str = scroll_line_if_needed(repository.path().to_string_lossy().to_string(), width as usize - 10, app.path_scroll_amount);
+        terminal.write(Attribute::Reverse)?;
+        terminal.write(format!("{:<10}{}\r\n", size_str, path_str))?;
+        terminal.write(Attribute::Reset)?;
+    } else {
+        let path_str = scroll_line_if_needed(repository.path().to_string_lossy().to_string(), width as usize - 10, 0);
+        terminal.write(format!("{:<10}{}\r\n", size_str, path_str))?;
+    }
+    Ok(())
 }
 
 pub fn run_tui(
@@ -107,27 +126,12 @@ pub fn run_tui(
         if render {
             terminal.clear(ClearType::All)?;
             cursor.goto(0, 0)?;
+            terminal.write("q: Quit\r\n")?;
             for (i, repository) in app.repositories.repositories_sorted()?.iter().enumerate() {
-                let size = repository.size();
-                if size > 0 {
-                    let size_str = match NumberPrefix::binary(size as f64) {
-                        Standalone(bytes) => format!("{}", bytes),
-                        Prefixed(prefix, n) => format!("{:>5.1} {}B", n, prefix),
-                    };
-                    let path_str = if i == app.y_pos {
-                        scroll_line_if_needed(repository.path().to_string_lossy().to_string(), width as usize - 10, app.path_scroll_amount)
-                    } else {
-                        scroll_line_if_needed(repository.path().to_string_lossy().to_string(), width as usize - 10, 0)
-                    };
-                    if i == app.y_pos {
-                        terminal.write(Attribute::Reverse)?;
-                        terminal.write(format!("{:<10}{}\r\n", size_str, path_str))?;
-                        terminal.write(Attribute::Reset)?;
-                    } else {
-                        terminal.write(format!("{:<10}{}\r\n", size_str, path_str))?;
-                    }
+                if repository.size() > 0 {
+                    render_repository(&app, repository, &terminal, i == app.y_pos)?;
                 }
-                if i >= height as usize - 2 {
+                if i >= height as usize - 3 {
                     break;
                 }
             }
