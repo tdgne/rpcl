@@ -3,82 +3,25 @@ use std::thread;
 use std::time::Duration;
 use std::sync::mpsc::Receiver;
 use crossterm::{style, Attribute, Terminal, RawScreen, input, InputEvent, KeyEvent, AlternateScreen, ClearType, Color, Crossterm, Styler};
-use number_prefix::{NumberPrefix, Standalone, Prefixed};
 
 use crate::collector;
 use crate::repository::*;
 
-pub struct PathList {
-    pub pos: usize,
-    pub offset: usize,
-    pub path_scroll_amount: usize,
-}
+mod app;
+pub use app::App;
 
-impl PathList {
-    fn go_up(&mut self) {
-        if self.pos > 0 {
-            self.pos -= 1;
-        } else if self.offset > 0 {
-            self.offset -= 1;
-        }
-        self.path_scroll_amount = 0;
-    }
+mod pathlist;
+pub use pathlist::PathList;
 
-    fn go_down(&mut self, list_height: usize) {
-        if self.pos + 1 < list_height {
-            self.pos += 1;
-        } else {
-            self.offset += 1;
-        }
-        self.path_scroll_amount = 0;
-    }
+mod usagebar;
+pub use usagebar::UsageBar;
 
-    fn draw(&self) {
-        // TODO: Refactor
-    }
-}
-
-pub struct App {
-    pub repositories: RepositoryStore,
-    pub root_path: String,
-    pub spinner_phase: usize,
-    pub path_list: PathList,
-}
-
-fn scroll_line_if_needed(mut line: String, width: usize, path_scroll_amount: usize) -> String {
-    if line.len() < width {
-        return line;
-    }
-    if (line.len() as isize) - (path_scroll_amount as isize) < width as isize {
-        return line.split_off(line.len() - width);
-    }
-    let mut line = line.split_off(path_scroll_amount);
-    line.split_off(width);
-    line
-}
-
-fn render_repository(app: &App, repository: &Repository, terminal: &Terminal, selected: bool) -> crossterm::Result<()> {
-    terminal.clear(ClearType::CurrentLine)?;
-    let size = repository.size();
-    let (width, height) = terminal.size()?;
-    let size_str = match NumberPrefix::binary(size as f64) {
-        Standalone(bytes) => format!("{}", bytes),
-        Prefixed(prefix, n) => format!("{:>5.1} {}B", n, prefix),
-    };
-    if selected {
-        let path_str = scroll_line_if_needed(repository.path().to_string_lossy().to_string(), width as usize - 10, app.path_list.path_scroll_amount);
-        terminal.write(Attribute::Reverse)?;
-        terminal.write(format!("{:<10}{}\r\n", size_str, path_str))?;
-        terminal.write(Attribute::Reset)?;
-    } else {
-        let path_str = scroll_line_if_needed(repository.path().to_string_lossy().to_string(), width as usize - 10, 0);
-        terminal.write(format!("{:<10}{}\r\n", size_str, path_str))?;
-    }
-    Ok(())
-}
+mod statusbar;
+pub use statusbar::StatusBar;
 
 pub fn run_tui(
-    mut app: App,
+    repositories: RepositoryStore,
+    root_path: String,
     collector_rx: Receiver<collector::Event>,
     spinner_rx: Receiver<()>
 ) -> Result<(), Box<dyn Error>> {
@@ -90,15 +33,32 @@ pub fn run_tui(
     cursor.hide()?;
     let (width, height) = terminal.size()?;
 
+    let mut app = App {
+        repositories,
+        root_path,
+        path_list: PathList {
+            pos: 0,
+            offset: 0,
+            path_scroll_amount: 0,
+            height: height as usize - 2
+        },
+        usage_bar: UsageBar,
+        status_bar: StatusBar {
+            spinner_phase: 0,
+            done: false,
+        }
+    };
+
     let input = input();
     let mut stdin = input.read_async();
 
     let spinner_strs = ["◡◡", "⊙⊙", "◠◠", "⊙⊙"];
     let mut done = false;
 
-    
-
     loop {
+        let (width, height) = terminal.size()?;
+        app.path_list.height = height as usize - 2;
+
         let mut render = true;
         if let Some(event) = stdin.next() {
             match event {
@@ -144,28 +104,11 @@ pub fn run_tui(
         }
         if let Ok(_) = spinner_rx.try_recv() {
             render = true;
-            app.spinner_phase += 1;
-            app.spinner_phase %= 4;
+            app.status_bar.spinner_phase += 1;
+            app.status_bar.spinner_phase %= 4;
         }
         if render {
-            cursor.goto(0, 0)?;
-            terminal.clear(ClearType::CurrentLine)?;
-            terminal.write("q: Quit  j,k: Move\r\n")?;
-            let list_height = height as usize - 2;
-            let repositories = app.repositories.repositories_sorted()?;
-            for i in 0..list_height {
-                if let Some(repository) = repositories.get(app.path_list.offset + i) {
-                    if repository.size() > 0 {
-                        render_repository(&app, &repository, &terminal, i == app.path_list.pos)?;
-                    }
-                }
-            }
-            terminal.clear(ClearType::CurrentLine)?;
-            if done {
-                terminal.write(format!("Done."))?;
-            } else {
-                terminal.write(format!("{} Searching under {}", spinner_strs[app.spinner_phase], app.root_path))?;
-            }
+            app.draw()?;
         }
         thread::sleep(Duration::from_millis(67));
         if app.path_list.path_scroll_amount < 1000 {
@@ -176,21 +119,4 @@ pub fn run_tui(
     cursor.show()?;
 
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_scroll_line_if_needed() {
-        assert_eq!(scroll_line_if_needed("".to_string(), 3, 0), "");
-        assert_eq!(scroll_line_if_needed("".to_string(), 3, 2), "");
-        assert_eq!(scroll_line_if_needed("abcde".to_string(), 3, 100), "cde");
-        assert_eq!(scroll_line_if_needed("abc".to_string(), 3, 1), "abc");
-        assert_eq!(scroll_line_if_needed("abcde".to_string(), 3, 0), "abc".to_string());
-        assert_eq!(scroll_line_if_needed("abcde".to_string(), 3, 1), "bcd".to_string());
-        assert_eq!(scroll_line_if_needed("abcde".to_string(), 3, 2), "cde".to_string());
-        assert_eq!(scroll_line_if_needed("abcde".to_string(), 3, 3), "cde".to_string());
-    }
 }
