@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::thread;
 use std::time::Duration;
-use std::sync::mpsc::Receiver;
+use std::sync::mpsc::{channel, Receiver};
 use crossterm::{style, Attribute, Terminal, RawScreen, input, InputEvent, KeyEvent, AlternateScreen, ClearType, Color, Crossterm, Styler};
 
 use crate::collector;
@@ -23,8 +23,15 @@ pub fn run_tui(
     repositories: RepositoryStore,
     root_path: String,
     collector_rx: Receiver<collector::Event>,
-    spinner_rx: Receiver<()>
 ) -> Result<(), Box<dyn Error>> {
+    let (spinner_tx, spinner_rx) = channel();
+    let _spinner = thread::spawn(move || {
+        loop {
+            thread::sleep(Duration::from_millis(333));
+            spinner_tx.send(()).unwrap();
+        }
+    });
+
     let _raw = RawScreen::into_raw_mode()?;
     let crossterm = Crossterm::new();
     let terminal = crossterm.terminal();
@@ -34,7 +41,7 @@ pub fn run_tui(
     let (width, height) = terminal.size()?;
 
     let mut app = App {
-        repositories,
+        repositories: repositories.clone(),
         root_path,
         path_list: PathList {
             pos: 0,
@@ -53,11 +60,11 @@ pub fn run_tui(
     let mut stdin = input.read_async();
 
     let spinner_strs = ["◡◡", "⊙⊙", "◠◠", "⊙⊙"];
-    let mut done = false;
 
     loop {
         let (width, height) = terminal.size()?;
         app.path_list.height = height as usize - 2;
+
 
         let mut render = true;
         if let Some(event) = stdin.next() {
@@ -69,7 +76,7 @@ pub fn run_tui(
                                 break;
                             },
                             'j' => {
-                                app.path_list.go_down(height as usize - 2);
+                                app.path_list.go_down(repositories.filtered_len()?);
                             },
                             'k' => {
                                 app.path_list.go_up();
@@ -83,7 +90,7 @@ pub fn run_tui(
                             app.path_list.go_up();
                         },
                         KeyEvent::Down => {
-                            app.path_list.go_down(height as usize - 2);
+                            app.path_list.go_down(repositories.filtered_len()?);
                         }
                         _ => {},
                     }
@@ -97,7 +104,7 @@ pub fn run_tui(
                     render = true;
                 },
                 collector::Event::Done => {
-                    done = true;
+                    app.status_bar.done = true;
                     render = true;
                 }
             }

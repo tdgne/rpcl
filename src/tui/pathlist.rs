@@ -21,16 +21,17 @@ impl PathList {
         self.path_scroll_amount = 0;
     }
 
-    pub fn go_down(&mut self, list_height: usize) {
-        if self.pos + 1 < list_height {
+    pub fn go_down(&mut self, list_len: usize) {
+        if self.pos + 1 < self.height {
             self.pos += 1;
-        } else {
+        } else if self.offset + self.pos + 1 < list_len {
             self.offset += 1;
         }
         self.path_scroll_amount = 0;
     }
 
     pub fn draw(&self, repositories: &Vec<Repository>) -> crossterm::Result<()> {
+        let terminal = crossterm::terminal();
         for i in 0..self.height {
             if let Some(repository) = repositories.get(self.offset + i) {
                 if repository.size() > 0 {

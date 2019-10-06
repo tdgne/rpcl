@@ -23,6 +23,7 @@ fn main() -> Result<(), Box<dyn Error>> {
              .index(1))
         .get_matches();
     let root_path = matches.value_of("DIR").unwrap_or(".").to_owned();
+
     let (tx, rx) = channel();
     let repositories = RepositoryStore::new();
     {
@@ -33,15 +34,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         });
     }
 
-    let (spinner_tx, spinner_rx) = channel();
-    let _spinner = thread::spawn(move || {
-        loop {
-            thread::sleep(Duration::from_millis(333));
-            spinner_tx.send(()).unwrap();
-        }
-    });
+    run_tui(repositories, root_path, rx)?;
 
-    run_tui(repositories, root_path, rx, spinner_rx)?;
     Ok(())
 }
 

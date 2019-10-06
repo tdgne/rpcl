@@ -73,5 +73,9 @@ impl RepositoryStore {
         repos.sort_by(|a, b| b.size().cmp(&a.size()));
         Ok(repos)
     }
+
+    pub fn filtered_len(&self) -> Result<usize, Box<dyn Error>> {
+        Ok(self.store.clone().read().expect("RwLock Error").iter().filter(|repo| repo.size() > 0).count())
+    }
 }
 
