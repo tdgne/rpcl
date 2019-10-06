@@ -2,7 +2,7 @@ use std::error::Error;
 use std::thread;
 use std::time::Duration;
 use std::sync::mpsc::{channel, Receiver};
-use crossterm::{style, Attribute, Terminal, RawScreen, input, InputEvent, KeyEvent, AlternateScreen, ClearType, Color, Crossterm, Styler};
+use crossterm::{RawScreen, input, InputEvent, KeyEvent, ClearType, Crossterm};
 
 use crate::collector;
 use crate::repository::*;
@@ -18,6 +18,9 @@ pub use usagebar::UsageBar;
 
 mod statusbar;
 pub use statusbar::StatusBar;
+
+mod helpwindow;
+pub use helpwindow::HelpWindow;
 
 pub fn run_tui(
     repositories: RepositoryStore,
@@ -38,7 +41,7 @@ pub fn run_tui(
     terminal.clear(ClearType::All)?;
     let cursor = crossterm.cursor();
     cursor.hide()?;
-    let (width, height) = terminal.size()?;
+    let (_width, height) = terminal.size()?;
 
     let mut app = App {
         repositories: repositories.clone(),
@@ -53,50 +56,80 @@ pub fn run_tui(
         status_bar: StatusBar {
             spinner_phase: 0,
             done: false,
+        },
+        help_window: HelpWindow {
+            show: false,
         }
     };
 
     let input = input();
     let mut stdin = input.read_async();
 
-    let spinner_strs = ["◡◡", "⊙⊙", "◠◠", "⊙⊙"];
-
     loop {
-        let (width, height) = terminal.size()?;
+        let (_width, height) = terminal.size()?;
         app.path_list.height = height as usize - 2;
 
 
         let mut render = true;
         if let Some(event) = stdin.next() {
-            match event {
+            match event.clone() {
                 InputEvent::Keyboard(k) => {
                     match k {
                         KeyEvent::Char(c) => match c {
                             'q' => {
                                 break;
                             },
-                            'j' => {
-                                app.path_list.go_down(repositories.filtered_len()?);
-                            },
-                            'k' => {
-                                app.path_list.go_up();
+                            'h' => {
+                                app.help_window.show = !app.help_window.show;
                             },
                             _ => {},
                         },
                         KeyEvent::Ctrl('c') => {
                             break;
                         },
-                        KeyEvent::Up => {
-                            app.path_list.go_up();
-                        },
-                        KeyEvent::Down => {
-                            app.path_list.go_down(repositories.filtered_len()?);
-                        }
                         _ => {},
                     }
                 }
                 _ => {},
             }
+            if !app.help_window.show {
+                match event {
+                    InputEvent::Keyboard(k) => {
+                        match k {
+                            KeyEvent::Char(c) => match c {
+                                'q' => {
+                                    break;
+                                },
+                                'j' => {
+                                    app.path_list.go_down(repositories.filtered_len()?);
+                                },
+                                'k' => {
+                                    app.path_list.go_up();
+                                },
+                                'g' => {
+                                    app.path_list.go_to_top();
+                                },
+                                'G' => {
+                                    app.path_list.go_to_bottom(repositories.filtered_len()?);
+                                },
+                                _ => {},
+                            },
+                            KeyEvent::Ctrl('c') => {
+                                break;
+                            },
+                            KeyEvent::Up => {
+                                app.path_list.go_up();
+                            },
+                            KeyEvent::Down => {
+                                app.path_list.go_down(repositories.filtered_len()?);
+                            }
+                            _ => {},
+                        }
+                    }
+                    _ => {},
+                }
+            }
+            
         }
         if let Ok(event) = collector_rx.try_recv() {
             match event {

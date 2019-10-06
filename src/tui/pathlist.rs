@@ -30,8 +30,23 @@ impl PathList {
         self.path_scroll_amount = 0;
     }
 
+    pub fn go_to_top(&mut self) {
+        self.pos = 0;
+        self.offset = 0;
+        self.path_scroll_amount = 0;
+    }
+
+    pub fn go_to_bottom(&mut self, list_len: usize) {
+        if list_len < self.height {
+            self.pos = list_len - 1;
+        } else {
+            self.pos = self.height - 1;
+            self.offset = list_len - self.height;
+        }
+        self.path_scroll_amount = 0;
+    }
+
     pub fn draw(&self, repositories: &Vec<Repository>) -> crossterm::Result<()> {
-        let terminal = crossterm::terminal();
         for i in 0..self.height {
             if let Some(repository) = repositories.get(self.offset + i) {
                 if repository.size() > 0 {
@@ -49,16 +64,16 @@ impl PathList {
         let (width, height) = terminal.size()?;
         let size_str = match NumberPrefix::binary(size as f64) {
             Standalone(bytes) => format!("{}", bytes),
-            Prefixed(prefix, n) => format!("{:>5.1} {}B", n, prefix),
+            Prefixed(prefix, n) => format!("{:>6.1} {}B", n, prefix),
         };
         if selected {
-            let path_str = scroll_line_if_needed(repository.path().to_string_lossy().to_string(), width as usize - 10, self.path_scroll_amount);
+            let path_str = scroll_line_if_needed(repository.path().to_string_lossy().to_string(), width as usize - 11, self.path_scroll_amount);
             terminal.write(Attribute::Reverse)?;
-            terminal.write(format!("{:<10}{}\r\n", size_str, path_str))?;
+            terminal.write(format!("{:<11}{}\r\n", size_str, path_str))?;
             terminal.write(Attribute::Reset)?;
         } else {
-            let path_str = scroll_line_if_needed(repository.path().to_string_lossy().to_string(), width as usize - 10, 0);
-            terminal.write(format!("{:<10}{}\r\n", size_str, path_str))?;
+            let path_str = scroll_line_if_needed(repository.path().to_string_lossy().to_string(), width as usize - 11, 0);
+            terminal.write(format!("{:<11}{}\r\n", size_str, path_str))?;
         }
         Ok(())
     }
