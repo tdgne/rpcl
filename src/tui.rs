@@ -22,6 +22,9 @@ pub use statusbar::StatusBar;
 mod helpwindow;
 pub use helpwindow::HelpWindow;
 
+mod window;
+pub use window::Window;
+
 pub fn run_tui(
     repositories: RepositoryStore,
     root_path: String,
@@ -57,9 +60,7 @@ pub fn run_tui(
             spinner_phase: 0,
             done: false,
         },
-        help_window: HelpWindow {
-            show: false,
-        }
+        help_window: HelpWindow::new()
     };
 
     let input = input();
