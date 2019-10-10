@@ -1,14 +1,18 @@
-use crossterm::{ClearType, Attribute};
+use crossterm::{InputEvent, KeyEvent, ClearType, Attribute};
 use number_prefix::{NumberPrefix, Standalone, Prefixed};
 
 use crate::tui::app::App;
-use crate::repository::Repository;
+use crate::repository::{Repository, RepositoryStore};
 
 pub struct PathList {
     pub pos: usize,
     pub offset: usize,
     pub path_scroll_amount: usize,
     pub height: usize,
+}
+
+pub enum Event {
+    Open(Repository),
 }
 
 impl PathList {
@@ -47,11 +51,18 @@ impl PathList {
     }
 
     pub fn draw(&self, repositories: &Vec<Repository>) -> crossterm::Result<()> {
+        let terminal = crossterm::terminal();
         for i in 0..self.height {
             if let Some(repository) = repositories.get(self.offset + i) {
                 if repository.size() > 0 {
                     self.render_repository(&repository, i == self.pos)?;
+                } else {
+                    terminal.clear(ClearType::CurrentLine)?;
+                    terminal.write("\r\n")?;
                 }
+            } else {
+                terminal.clear(ClearType::CurrentLine)?;
+                terminal.write("\r\n")?;
             }
         }
         Ok(())
@@ -76,6 +87,47 @@ impl PathList {
             terminal.write(format!("{:<11}{}\r\n", size_str, path_str))?;
         }
         Ok(())
+    }
+
+    fn get_selected_repository(&self, repositories: &RepositoryStore) -> Result<Repository, Box<dyn std::error::Error>> {
+        let repositories = repositories.repositories_sorted()?;
+        return Ok(repositories[self.pos + self.offset].clone());
+    }
+
+    pub fn input(&mut self, event: InputEvent, repositories: &RepositoryStore) -> Result<Option<Event>, Box<dyn std::error::Error>> {
+        match event {
+            InputEvent::Keyboard(k) => {
+                match k {
+                    KeyEvent::Char(c) => match c {
+                        'j' => {
+                            self.go_down(repositories.filtered_len()?);
+                        },
+                        'k' => {
+                            self.go_up();
+                        },
+                        'g' => {
+                            self.go_to_top();
+                        },
+                        'G' => {
+                            self.go_to_bottom(repositories.filtered_len()?);
+                        },
+                        _ => {},
+                    },
+                    KeyEvent::Enter => {
+                        return Ok(Some(Event::Open(self.get_selected_repository(repositories)?)));
+                    },
+                    KeyEvent::Up => {
+                        self.go_up();
+                    },
+                    KeyEvent::Down => {
+                        self.go_down(repositories.filtered_len()?);
+                    }
+                    _ => {},
+                }
+            }
+            _ => {},
+        }
+        Ok(None)
     }
 }
 

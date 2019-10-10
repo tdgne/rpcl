@@ -8,7 +8,7 @@ use crate::collector;
 use crate::repository::*;
 
 mod app;
-pub use app::App;
+pub use app::{App, AppState};
 
 mod pathlist;
 pub use pathlist::PathList;
@@ -18,6 +18,9 @@ pub use usagebar::UsageBar;
 
 mod statusbar;
 pub use statusbar::StatusBar;
+
+mod details;
+pub use details::Details;
 
 mod helpwindow;
 pub use helpwindow::HelpWindow;
@@ -60,7 +63,12 @@ pub fn run_tui(
             spinner_phase: 0,
             done: false,
         },
-        help_window: HelpWindow::new()
+        details: Details {
+            height: height as usize - 2,
+            repository: None,
+        },
+        help_window: HelpWindow::new(),
+        state: AppState::PathList,
     };
 
     let input = input();
@@ -69,88 +77,29 @@ pub fn run_tui(
     loop {
         let (_width, height) = terminal.size()?;
         app.path_list.height = height as usize - 2;
+        app.details.height = height as usize - 2;
 
-
-        let mut render = true;
         if let Some(event) = stdin.next() {
-            match event.clone() {
-                InputEvent::Keyboard(k) => {
-                    match k {
-                        KeyEvent::Char(c) => match c {
-                            'q' => {
-                                break;
-                            },
-                            'h' => {
-                                app.help_window.show = !app.help_window.show;
-                            },
-                            _ => {},
-                        },
-                        KeyEvent::Ctrl('c') => {
-                            break;
-                        },
-                        _ => {},
-                    }
-                }
-                _ => {},
+            if app.input(event)? {
+                break;
             }
-            if !app.help_window.show {
-                match event {
-                    InputEvent::Keyboard(k) => {
-                        match k {
-                            KeyEvent::Char(c) => match c {
-                                'q' => {
-                                    break;
-                                },
-                                'j' => {
-                                    app.path_list.go_down(repositories.filtered_len()?);
-                                },
-                                'k' => {
-                                    app.path_list.go_up();
-                                },
-                                'g' => {
-                                    app.path_list.go_to_top();
-                                },
-                                'G' => {
-                                    app.path_list.go_to_bottom(repositories.filtered_len()?);
-                                },
-                                _ => {},
-                            },
-                            KeyEvent::Ctrl('c') => {
-                                break;
-                            },
-                            KeyEvent::Up => {
-                                app.path_list.go_up();
-                            },
-                            KeyEvent::Down => {
-                                app.path_list.go_down(repositories.filtered_len()?);
-                            }
-                            _ => {},
-                        }
-                    }
-                    _ => {},
-                }
-            }
-            
         }
         if let Ok(event) = collector_rx.try_recv() {
             match event {
                 collector::Event::Update => {
-                    render = true;
                 },
                 collector::Event::Done => {
                     app.status_bar.done = true;
-                    render = true;
                 }
             }
         }
         if let Ok(_) = spinner_rx.try_recv() {
-            render = true;
             app.status_bar.spinner_phase += 1;
             app.status_bar.spinner_phase %= 4;
         }
-        if render {
-            app.draw()?;
-        }
+
+        app.draw()?;
+
         thread::sleep(Duration::from_millis(67));
         if app.path_list.path_scroll_amount < 1000 {
             app.path_list.path_scroll_amount += 1;
