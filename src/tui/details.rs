@@ -4,7 +4,6 @@ use crate::repository::Repository;
 
 pub struct Details {
     pub height: usize,
-    pub repository: Option<Repository>,
 }
 
 pub enum Event {
@@ -27,20 +26,13 @@ impl Details {
         Ok(None)
     }
      
-    pub fn draw(&self) -> crossterm::Result<()> {
+    pub fn draw(&self, repository: Repository) -> crossterm::Result<()> {
         let terminal = crossterm::terminal();
-        if let Some(repository) = &self.repository {
+        terminal.clear(ClearType::CurrentLine)?;
+        terminal.write(format!("{}\r\n", repository.path().to_string_lossy()))?;
+        for i in 1..self.height {
             terminal.clear(ClearType::CurrentLine)?;
-            terminal.write(format!("{}\r\n", repository.path().to_string_lossy()))?;
-            for i in 1..self.height {
-                terminal.clear(ClearType::CurrentLine)?;
-                terminal.write("\r\n")?;
-            }
-        } else {
-            for i in 0..self.height {
-                terminal.clear(ClearType::CurrentLine)?;
-                terminal.write("\r\n")?;
-            }
+            terminal.write("\r\n")?;
         }
         Ok(())
     }

@@ -65,7 +65,6 @@ pub fn run_tui(
         },
         details: Details {
             height: height as usize - 2,
-            repository: None,
         },
         help_window: HelpWindow::new(),
         state: AppState::PathList,

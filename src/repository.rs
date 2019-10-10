@@ -77,5 +77,9 @@ impl RepositoryStore {
     pub fn filtered_len(&self) -> Result<usize, Box<dyn Error>> {
         Ok(self.store.clone().read().expect("RwLock Error").iter().filter(|repo| repo.size() > 0).count())
     }
+
+    pub fn find_by_path(&self, path: PathBuf) -> Result<Option<Repository>, Box<dyn Error>> {
+        Ok(self.store.clone().read().expect("RwLock Error").iter().find(|r| r.path().to_path_buf() == path).map(|r| r.clone()))
+    }
 }
 

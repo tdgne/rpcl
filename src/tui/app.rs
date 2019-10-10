@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use crossterm::{InputEvent, KeyEvent};
 
 use crate::repository::RepositoryStore;
@@ -9,7 +11,7 @@ use crate::tui::{details, details::Details};
 
 pub enum AppState {
     PathList,
-    Details,
+    Details(PathBuf),
 }
 
 pub struct App {
@@ -50,16 +52,14 @@ impl App {
                 AppState::PathList => {
                     match self.path_list.input(event.clone(), &self.repositories)? {
                         Some(pathlist::Event::Open(repository)) => {
-                            self.details.repository = Some(repository);
-                            self.state = AppState::Details;
+                            self.state = AppState::Details(repository.path().to_path_buf());
                         },
                         None => {},
                     }
                 },
-                AppState::Details => {
+                AppState::Details(_) => {
                     match self.details.input(event.clone())? {
                         Some(details::Event::Close) => {
-                            self.details.repository = None;
                             self.state = AppState::PathList;
                         },
                         None => {},
@@ -79,8 +79,11 @@ impl App {
             AppState::PathList => {
                 self.path_list.draw(&repositories)?;
             },
-            AppState::Details => {
-                self.details.draw()?;
+            AppState::Details(ref path) => {
+                let repository = self.repositories.find_by_path(path.clone())?;
+                if let Some(repository) = repository {
+                    self.details.draw(repository)?;
+                }
             }
         }
         self.status_bar.draw(&self.root_path)?;
