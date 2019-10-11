@@ -57,8 +57,8 @@ impl App {
                         None => {},
                     }
                 },
-                AppState::Details(_) => {
-                    match self.details.input(event.clone())? {
+                AppState::Details(ref path) => {
+                    match self.details.input(event.clone(), &self.repositories.find_by_path(path.clone())?.expect("Repository not found"))? {
                         Some(details::Event::Close) => {
                             self.state = AppState::PathList;
                         },

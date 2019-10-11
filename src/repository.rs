@@ -14,6 +14,10 @@ impl IgnoredPathInfo {
             path, size
         }
     }
+    
+    pub fn path(&self) -> &Path {
+        self.path.as_path()
+    }
 
     pub fn size(&self) -> u64 {
         self.size
@@ -42,6 +46,10 @@ impl Repository {
 
     pub fn size(&self) -> u64 {
         self.size
+    }
+
+    pub fn ignored_path_infos(&self) -> &Vec<IgnoredPathInfo> {
+        &self.ignored_path_infos
     }
 }
 

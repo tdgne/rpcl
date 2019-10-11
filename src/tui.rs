@@ -69,7 +69,11 @@ pub fn run_tui(
             done: false,
         },
         details: Details {
-            height: height as usize - 2,
+            list: List {
+                pos: 0,
+                offset: 0,
+                height: height as usize - 2,
+            }
         },
         help_window: HelpWindow::new(),
         state: AppState::PathList,
@@ -81,7 +85,7 @@ pub fn run_tui(
     loop {
         let (_width, height) = terminal.size()?;
         app.path_list.list.height = height as usize - 2;
-        app.details.height = height as usize - 2;
+        app.details.list.height = height as usize - 2;
 
         if let Some(event) = stdin.next() {
             if app.input(event)? {

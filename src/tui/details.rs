@@ -1,9 +1,10 @@
-use crossterm::{KeyEvent, InputEvent, ClearType};
+use crossterm::{KeyEvent, InputEvent};
 
 use crate::repository::Repository;
+use crate::tui::list::List;
 
 pub struct Details {
-    pub height: usize,
+    pub list: List,
 }
 
 pub enum Event {
@@ -11,7 +12,8 @@ pub enum Event {
 }
 
 impl Details {
-    pub fn input(&mut self, event: InputEvent) -> Result<Option<Event>, Box<dyn std::error::Error>> {
+    pub fn input(&mut self, event: InputEvent, repository: &Repository) -> Result<Option<Event>, Box<dyn std::error::Error>> {
+        self.list.input(event.clone(), 1 + repository.ignored_path_infos().len());
         match event {
             InputEvent::Keyboard(k) => {
                 match k {
@@ -27,13 +29,12 @@ impl Details {
     }
      
     pub fn draw(&self, repository: Repository) -> crossterm::Result<()> {
-        let terminal = crossterm::terminal();
-        terminal.clear(ClearType::CurrentLine)?;
-        terminal.write(format!("{}\r\n", repository.path().to_string_lossy()))?;
-        for i in 1..self.height {
-            terminal.clear(ClearType::CurrentLine)?;
-            terminal.write("\r\n")?;
+        let mut strings = Vec::new();
+        strings.push(format!("{}\r\n", repository.path().to_string_lossy()));
+        for ignored_path_info in repository.ignored_path_infos().iter() {
+            strings.push(format!("{}\r\n", ignored_path_info.path().to_string_lossy()));
         }
+        self.list.draw(&strings)?;
         Ok(())
     }
 }

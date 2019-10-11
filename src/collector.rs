@@ -2,13 +2,12 @@ use std::error::Error;
 use std::path::PathBuf;
 use walkdir::{DirEntry, WalkDir};
 use crate::repository::*;
-use gitignore;
+use ignore;
 
 pub enum Event {
     Update,
     Done,
 }
-
 
 fn is_repository_mark_directory(entry: &DirEntry) -> bool {
     entry.file_type().is_dir() && entry.file_name().to_str().map(|s| s == ".git").unwrap_or(false)
@@ -44,11 +43,7 @@ fn collect_ignored_path_infos(repository_path: PathBuf) -> Result<Vec<IgnoredPat
     let mut ignored_path_infos = Vec::new();
     let mut gitignore_path = repository_path.clone();
     gitignore_path.push(".gitignore");
-    let ignore = gitignore::File::new(gitignore_path.as_path());
-    let ignore = match ignore {
-        Err(_) => return Ok(ignored_path_infos),
-        Ok(ignore) => ignore,
-    };
+    let (ignore, _) = ignore::gitignore::Gitignore::new(gitignore_path);
     // I don't want to bother with symlinks within repositories
     let mut it = WalkDir::new(repository_path).follow_links(false).into_iter();
     loop {
@@ -57,7 +52,7 @@ fn collect_ignored_path_infos(repository_path: PathBuf) -> Result<Vec<IgnoredPat
             Some(Err(_)) => continue,
             Some(Ok(entry)) => entry,
         };
-        if ignore.is_excluded(entry.path())? {
+        if ignore.matched(entry.path(), entry.file_type().is_dir()).is_ignore() {
             let size = calculate_size(entry.clone())?;
             ignored_path_infos.push(IgnoredPathInfo::new(entry.clone().into_path(), size));
             it.skip_current_dir();
