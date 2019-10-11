@@ -1,4 +1,5 @@
 use crossterm::{InputEvent, KeyEvent, ClearType, Attribute};
+use std::cmp::min;
 
 pub struct List {
     pub pos: usize,
@@ -16,7 +17,7 @@ impl List {
     }
 
     pub fn go_down(&mut self, list_len: usize) {
-        if self.pos + 1 < self.height {
+        if self.pos + 1 < min(self.height, list_len) {
             self.pos += 1;
         } else if self.offset + self.pos + 1 < list_len {
             self.offset += 1;
