@@ -10,6 +10,9 @@ use crate::repository::*;
 mod app;
 pub use app::{App, AppState};
 
+mod list;
+pub use list::List;
+
 mod pathlist;
 pub use pathlist::PathList;
 
@@ -53,10 +56,12 @@ pub fn run_tui(
         repositories: repositories.clone(),
         root_path,
         path_list: PathList {
-            pos: 0,
-            offset: 0,
+            list: List {
+                pos: 0,
+                offset: 0,
+                height: height as usize - 2
+            },
             path_scroll_amount: 0,
-            height: height as usize - 2
         },
         usage_bar: UsageBar,
         status_bar: StatusBar {
@@ -75,7 +80,7 @@ pub fn run_tui(
 
     loop {
         let (_width, height) = terminal.size()?;
-        app.path_list.height = height as usize - 2;
+        app.path_list.list.height = height as usize - 2;
         app.details.height = height as usize - 2;
 
         if let Some(event) = stdin.next() {
