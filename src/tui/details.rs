@@ -12,6 +12,13 @@ pub enum Event {
     Close,
 }
 
+fn size_str(size: u64) -> String {
+    match NumberPrefix::binary(size as f64) {
+        Standalone(bytes) => format!("{}", bytes),
+        Prefixed(prefix, n) => format!("{:>6.1} {}B", n, prefix),
+    }
+}
+
 impl Details {
     pub fn input(&mut self, event: InputEvent, repository: &Repository) -> Result<Option<Event>, Box<dyn std::error::Error>> {
         self.list.input(event.clone(), 1 + repository.ignored_path_infos().len());
@@ -32,13 +39,9 @@ impl Details {
      
     pub fn draw(&self, repository: Repository) -> crossterm::Result<()> {
         let mut strings = Vec::new();
-        strings.push(format!("{}\r\n", repository.path().to_string_lossy()));
+        strings.push(format!("{:<11}{}\r\n", size_str(repository.size()), repository.path().to_string_lossy()));
         for ignored_path_info in repository.ignored_path_infos().iter() {
-            let size_str = match NumberPrefix::binary(ignored_path_info.size() as f64) {
-                Standalone(bytes) => format!("{}", bytes),
-                Prefixed(prefix, n) => format!("{:>6.1} {}B", n, prefix),
-            };
-            strings.push(format!("{:<11}{}\r\n", size_str, ignored_path_info.path().to_string_lossy()));
+            strings.push(format!("    {:<11}{}\r\n", size_str(ignored_path_info.size()), ignored_path_info.path().to_string_lossy()));
         }
         self.list.draw(&strings)?;
         Ok(())
