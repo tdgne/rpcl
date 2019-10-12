@@ -22,6 +22,9 @@ impl List {
         } else if self.offset + self.pos + 1 < list_len {
             self.offset += 1;
         }
+        if self.pos >= list_len {
+            self.pos = list_len - 1;
+        }
     }
 
     pub fn go_to_top(&mut self) {

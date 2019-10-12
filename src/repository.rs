@@ -61,6 +61,10 @@ impl Repository {
                 i.clean()?;
             }
         }
+        self.ignored_path_infos = self.ignored_path_infos.iter()
+            .filter(|i| i.size() != 0)
+            .map(|i| i.clone())
+            .collect::<Vec<_>>();
         Ok(())
     }
 }

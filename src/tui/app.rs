@@ -71,10 +71,10 @@ impl App {
                             self.clean_ignored_path(
                                 repository.clone(),
                                 repository.ignored_path_infos()
-                                    .iter()
-                                    .find(|i| i.path() == path.as_path())
-                                    .expect("IgnoredPathInfo not found")
-                                    .clone())?;
+                                .iter()
+                                .find(|i| i.path() == path.as_path())
+                                .expect("IgnoredPathInfo not found")
+                                .clone())?;
                         },
                         None => {},
                     }
@@ -94,7 +94,9 @@ impl App {
     pub fn clean_ignored_path(&mut self, repository: Repository, ignored_path_info: IgnoredPathInfo) -> Result<(), Box<dyn std::error::Error>> {
         let mut repositories = self.repositories.clone();
         std::thread::spawn(move || {
-            repositories.clean_ignored_path(&repository, &ignored_path_info);
+            if let Err(e) = repositories.clean_ignored_path(&repository, &ignored_path_info) {
+                eprintln!("{}", e);
+            }
         });
         Ok(())
     }
