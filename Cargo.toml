@@ -1,5 +1,5 @@
 [package]
-name = "repository_locations"
+name = "repository_cleaner"
 version = "0.1.0"
 authors = ["tdgne"]
 edition = "2018"
