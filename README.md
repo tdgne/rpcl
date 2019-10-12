@@ -2,10 +2,12 @@
 
 Clean up those huge `target`s and `node_module`s etc. in your old forgotten repositories.
 
-## Usage example
+## Usage examples
 
 ```
-cargo run -- ~
+cargo install --git https://github.com/tdgne/rpcl.git
+rpcl # search under current dir
+rpcl ~ # search under home dir
 ```
 
 ## How it works
