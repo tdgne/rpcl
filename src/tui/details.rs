@@ -55,11 +55,17 @@ impl Details {
     }
      
     pub fn draw(&self, repository: Repository) -> crossterm::Result<()> {
+        use std::cmp::max;
+        let terminal = crossterm::terminal();
+        let (width, _height) = terminal.size()?;
         let mut strings = Vec::new();
         strings.push(format!("{:<11}{}\r\n", size_str(repository.size()), repository.path().to_string_lossy()));
+        let path_width = width as isize - 15;
         for ignored_path_info in repository.ignored_path_infos().iter() {
+            let mut path_str = ignored_path_info.path().to_string_lossy().to_string();
+            let path_str = path_str.split_off(repository.path().to_string_lossy().len());
             if ignored_path_info.size() > 0 {
-                strings.push(format!("    {:<11}{}\r\n", size_str(ignored_path_info.size()), ignored_path_info.path().to_string_lossy()));
+                strings.push(format!("    {:<11}{}\r\n", size_str(ignored_path_info.size()), path_str));
             }
         }
         self.list.draw(&strings)?;
