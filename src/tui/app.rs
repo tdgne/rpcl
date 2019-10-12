@@ -1,14 +1,15 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crossterm::{InputEvent, KeyEvent};
 
-use crate::repository::RepositoryStore;
+use crate::repository::{Repository, RepositoryStore, IgnoredPathInfo};
 use crate::tui::{pathlist, pathlist::PathList};
 use crate::tui::usagebar::UsageBar;
 use crate::tui::statusbar::StatusBar;
 use crate::tui::helpwindow::HelpWindow;
 use crate::tui::{details, details::Details};
 
+#[derive(Clone)]
 pub enum AppState {
     PathList,
     Details(PathBuf),
@@ -58,22 +59,50 @@ impl App {
                     }
                 },
                 AppState::Details(ref path) => {
-                    match self.details.input(event.clone(), &self.repositories.find_by_path(path.clone())?.expect("Repository not found"))? {
+                    let repository = self.repositories.find_by_path(path.clone())?.expect("Repository not found");
+                    match self.details.input(event.clone(), &repository)? {
                         Some(details::Event::Close) => {
                             self.state = AppState::PathList;
                         },
+                        Some(details::Event::DeleteAll) => {
+                            self.clean_repository(&repository)?;
+                        },
+                        Some(details::Event::Delete(path)) => {
+                            self.clean_ignored_path(
+                                repository.clone(),
+                                repository.ignored_path_infos()
+                                    .iter()
+                                    .find(|i| i.path() == path.as_path())
+                                    .expect("IgnoredPathInfo not found")
+                                    .clone())?;
+                        },
                         None => {},
                     }
-                }
+                },
             }
         }
         Ok(false)
     }
 
+    pub fn clean_repository(&mut self, repository: &Repository) -> Result<(), Box<dyn std::error::Error>> {
+        for info in repository.ignored_path_infos().iter() {
+            self.clean_ignored_path(repository.clone(), info.clone())?;
+        }
+        Ok(())
+    }
+
+    pub fn clean_ignored_path(&mut self, repository: Repository, ignored_path_info: IgnoredPathInfo) -> Result<(), Box<dyn std::error::Error>> {
+        let mut repositories = self.repositories.clone();
+        std::thread::spawn(move || {
+            repositories.clean_ignored_path(&repository, &ignored_path_info);
+        });
+        Ok(())
+    }
+
     pub fn draw(&self) -> Result<(), Box<dyn std::error::Error>> {
         let cursor = crossterm::cursor();
         cursor.goto(0, 0)?;
-        self.usage_bar.draw()?;
+        self.usage_bar.draw(&self.state)?;
         let repositories = self.repositories.repositories_sorted()?;
         match self.state {
             AppState::PathList => {

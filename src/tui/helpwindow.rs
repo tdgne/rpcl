@@ -6,10 +6,11 @@ pub struct HelpWindow {
 }
 
 const MESSAGE: &'static [&'static str] = &[
-    "j,k: Move up, down",
-    "g,G: Go to top, bottom",
-    "  d: Delete .gitignored resources of the selected repository",
-    "  h: Show this message",
+    "  j,k: Move up, down",
+    "  g,G: Go to top, bottom",
+    "Enter: Show details of the selected repository",
+    "    d: Delete selected resources",
+    "    h: Show this message",
 ];
 
 impl HelpWindow {

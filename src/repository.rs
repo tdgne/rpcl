@@ -24,20 +24,23 @@ impl IgnoredPathInfo {
     }
 }
 
+impl IgnoredPathInfo {
+    fn clean(&mut self) -> Result<(), Box<dyn Error>> {
+        std::fs::remove_dir_all(self.path.as_path())?;
+        self.size = 0;
+        Ok(())
+    }
+}
+
 #[derive(Clone)]
 pub struct Repository {
     path: PathBuf,
     ignored_path_infos: Vec<IgnoredPathInfo>,
-    size: u64,
 }
 
 impl Repository {
     pub fn new(path: PathBuf, ignored_path_infos: Vec<IgnoredPathInfo>) -> Self {
-        let mut size = 0u64;
-        for info in ignored_path_infos.iter() {
-            size += info.size;
-        }
-        Self { path, ignored_path_infos, size }
+        Self { path, ignored_path_infos }
     }
 
     pub fn path(&self) -> &Path {
@@ -45,11 +48,20 @@ impl Repository {
     }
 
     pub fn size(&self) -> u64 {
-        self.size
+        self.ignored_path_infos.iter().fold(0, |acc, i| acc + i.size())
     }
 
     pub fn ignored_path_infos(&self) -> &Vec<IgnoredPathInfo> {
         &self.ignored_path_infos
+    }
+
+    fn clean_ignored_path(&mut self, ignored_path_info: &IgnoredPathInfo) -> Result<(), Box<dyn Error>> {
+        for i in self.ignored_path_infos.iter_mut() {
+            if i.path() == ignored_path_info.path() {
+                i.clean()?;
+            }
+        }
+        Ok(())
     }
 }
 
@@ -88,6 +100,15 @@ impl RepositoryStore {
 
     pub fn find_by_path(&self, path: PathBuf) -> Result<Option<Repository>, Box<dyn Error>> {
         Ok(self.store.clone().read().expect("RwLock Error").iter().find(|r| r.path().to_path_buf() == path).map(|r| r.clone()))
+    }
+
+    pub fn clean_ignored_path(&mut self, repository: &Repository, ignored_path_info: &IgnoredPathInfo) -> Result<(), Box<dyn Error>> {
+        for r in self.store.clone().write().expect("RwLock Error").iter_mut() {
+            if r.path() == repository.path() {
+                r.clean_ignored_path(ignored_path_info)?;
+            }
+        }
+        Ok(())
     }
 }
 

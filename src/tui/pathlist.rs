@@ -30,7 +30,7 @@ impl PathList {
         let size = repository.size();
         let (width, _height) = terminal.size()?;
         let size_str = match NumberPrefix::binary(size as f64) {
-            Standalone(bytes) => format!("{}", bytes),
+            Standalone(bytes) => format!("{:>6}   B", bytes),
             Prefixed(prefix, n) => format!("{:>6.1} {}B", n, prefix),
         };
         Ok(if selected {
